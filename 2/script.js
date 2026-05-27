@@ -1,3 +1,5 @@
+// discord: anubisgpt, roblox: iPxchy_Vibxs
+
 const stage = document.getElementById("stage");
 const message = document.getElementById("message");
 const startBtn = document.getElementById("startBtn");
