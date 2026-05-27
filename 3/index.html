@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Typing Test</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="wrap">
+    <section class="panel">
+      <div class="head">
+        <h1>typing test</h1>
+        <div class="top-stats">
+          <span>Time: <strong id="timeLeft">60</strong>s</span>
+          <span>Wpm: <strong id="wpm">0</strong></span>
+          <span>Accuracy: <strong id="accuracy">100</strong>%</span>
+          <span>Best: <strong id="bestWpm">0</strong></span>
+        </div>
+      </div>
+
+      <div id="quoteBox" class="quote-box"></div>
+
+      <div class="field-wrap">
+        <textarea
+          id="typingInput"
+          placeholder="start typing here"
+          spellcheck="false"
+        ></textarea>
+      </div>
+
+      <div class="bottom">
+        <div class="small-stats">
+          <span>Mistakes: <strong id="mistakes">0</strong></span>
+          <span>Typed: <strong id="typedChars">0</strong></span>
+          <span>Status: <strong id="statusText">ready</strong></span>
+        </div>
+
+        <div class="actions">
+          <button id="startBtn">Start</button>
+          <button id="restartBtn">Restart</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

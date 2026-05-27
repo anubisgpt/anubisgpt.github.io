@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reaction Test</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="wrap">
+    <section class="panel">
+      <div class="top">
+        <h1>reaction test</h1>
+        <div class="stats">
+          <span>Best: <strong id="bestScore">-</strong></span>
+          <span>Last: <strong id="lastScore">-</strong></span>
+        </div>
+      </div>
+
+      <div id="stage" class="stage idle">
+        <div id="message" class="message">press start, then wait for the signal</div>
+      </div>
+
+      <div class="controls">
+        <button id="startBtn">Start round</button>
+        <button id="resetBtn">Clear scores</button>
+      </div>
+
+      <section class="history-box">
+        <h2>Recent tries</h2>
+        <ul id="historyList"></ul>
+      </section>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
