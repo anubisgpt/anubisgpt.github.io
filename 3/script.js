@@ -1,3 +1,5 @@
+// discord: anubisgpt, roblox: iPxchy_Vibxs
+
 const quoteBox = document.getElementById("quoteBox");
 const typingInput = document.getElementById("typingInput");
 
