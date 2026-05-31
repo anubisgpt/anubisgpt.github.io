@@ -3,6 +3,7 @@
 const quoteBox = document.getElementById("quoteBox");
 const typingInput = document.getElementById("typingInput");
 
+// all the stat display elements grabbed once at the top
 const timeLeftText = document.getElementById("timeLeft");
 const wpmText = document.getElementById("wpm");
 const accuracyText = document.getElementById("accuracy");
@@ -14,7 +15,7 @@ const statusText = document.getElementById("statusText");
 const startBtn = document.getElementById("startBtn");
 const restartBtn = document.getElementById("restartBtn");
 
-// short prompt list for the round
+// the pool of prompts the test pulls from randomly each round
 const lines = [
   "small steps every day usually beat big plans that never leave the desk.",
   "a quiet room, a clear head, and a working keyboard can fix a lot of things.",
@@ -23,31 +24,36 @@ const lines = [
   "good practice comes from doing the same thing enough times that the rough parts start to show."
 ];
 
-// keep only the values that change during a round
+// mutable round state, everything else above stays constant
+// keeping this in one object means reset is just overwriting fields instead of hunting variables
 const app = {
-  currentText: "",
-  started: false,
-  done: false,
+  currentText: "",  // the active prompt the user is typing against
+  started: false,   // true once the timer is running
+  done: false,      // true once time runs out or user finishes the prompt
   secondsLeft: 60,
-  totalTyped: 0,
-  wrongCount: 0,
-  timerId: null,
+  totalTyped: 0,    // raw character count, includes mistakes
+  wrongCount: 0,    // mismatched characters at current input position
+  timerId: null,    // holds the setInterval reference so it can be cleared
   startedAt: 0,
-  bestWpm: loadBest()
+  bestWpm: loadBest() // pulled from localStorage on load
 };
 
 bestWpmText.textContent = app.bestWpm;
+
+// input is locked until the user presses start, prevents typing before the timer runs
 typingInput.disabled = true;
 
-// setup
 pickText();
 refreshNumbers();
 
 startBtn.addEventListener("click", startTest);
 restartBtn.addEventListener("click", resetTest);
+
+// every keystroke goes through onTyping which drives most of the round logic
 typingInput.addEventListener("input", onTyping);
 
-// read saved best score once when the page loads
+// localStorage gives us persistence without a backend
+// the guard against NaN handles cases where the stored value got corrupted somehow
 function loadBest() {
   const saved = localStorage.getItem("typing-best-wpm");
   const num = Number(saved);
@@ -58,20 +64,21 @@ function saveBest(value) {
   localStorage.setItem("typing-best-wpm", String(value));
 }
 
-// pick the next line, then redraw the visible quote
+// picks a random line and redraws the quote box with no typed input yet
 function pickText() {
   const next = lines[Math.floor(Math.random() * lines.length)];
   app.currentText = next;
-  drawQuote("");
+  drawQuote(""); // empty string so nothing is marked correct or wrong yet
 }
 
-// start the timer and unlock the input
 function startTest() {
+  // if a round is already running just push focus back to the input
   if (app.started && !app.done) {
     typingInput.focus();
     return;
   }
 
+  // if coming from a finished round, clean up before starting fresh
   if (app.done) {
     resetTest();
   }
@@ -83,11 +90,13 @@ function startTest() {
   typingInput.disabled = false;
   typingInput.focus();
 
-  // clear old timer first so only one round is active
+  // kill old timer so two intervals can't stack if start is clicked repeatedly
   if (app.timerId) {
     clearInterval(app.timerId);
   }
 
+  // counts down every second, the interval is what drives the time display
+  // when it hits zero it hands off to finishTest which handles cleanup
   app.timerId = setInterval(() => {
     app.secondsLeft -= 1;
     timeLeftText.textContent = app.secondsLeft;
@@ -98,7 +107,7 @@ function startTest() {
   }, 1000);
 }
 
-// func to bring everything back to the first state
+// brings everything back to the initial state so a new round can begin cleanly
 function resetTest() {
   if (app.timerId) {
     clearInterval(app.timerId);
@@ -117,11 +126,13 @@ function resetTest() {
   timeLeftText.textContent = "60";
   statusText.textContent = "ready";
 
+  // pick a fresh prompt so the user isn't repeating the same line
   pickText();
   refreshNumbers();
 }
 
-// compare current input against the active line
+// fires on every keystroke while the input is active
+// this is the core of the round, it compares typed input against the target and updates everything
 function onTyping() {
   if (!app.started || app.done) {
     return;
@@ -130,28 +141,33 @@ function onTyping() {
   const typed = typingInput.value;
   const target = app.currentText;
 
+  // totalTyped is the raw length, not just correct chars
   app.totalTyped = typed.length;
 
   let wrong = 0;
 
-  // count mismatches by position
+  // walk through each typed character and compare it against the same position in the target
+  // this means inserting an early wrong character shifts all subsequent ones wrong too
   for (let i = 0; i < typed.length; i++) {
     if (typed[i] !== target[i]) {
       wrong += 1;
     }
   }
 
-  // if user deleted some characters, then count those as wrong too
   app.wrongCount = wrong;
+
+  // redraw the colored quote and recalculate stats on every input event
   drawQuote(typed);
   refreshNumbers();
 
+  // finishing the prompt early ends the round without waiting for the timer
   if (typed === target) {
     finishTest();
   }
 }
 
-// rebuild the prompt so each character can show its current state
+// rebuilds the quote box as a series of spans so each character can be colored individually
+// this runs on every keystroke so the visual feedback stays in sync with the input
 function drawQuote(typed) {
   let html = "";
 
@@ -160,7 +176,8 @@ function drawQuote(typed) {
     const got = typed[i];
 
     if (got == null) {
-      // mark the next position while the round is still active
+      // this character hasn't been reached yet
+      // the "now" class marks the next expected character as a soft cursor indicator
       if (i === typed.length && !app.done) {
         html += '<span class="now">' + escapeHtml(real) + "</span>";
       } else {
@@ -169,6 +186,7 @@ function drawQuote(typed) {
       continue;
     }
 
+    // correct gets green, wrong gets red, decided per character
     if (got === real) {
       html += '<span class="ok">' + escapeHtml(real) + "</span>";
     } else {
@@ -179,24 +197,28 @@ function drawQuote(typed) {
   quoteBox.innerHTML = html;
 }
 
-// update values shown under the round
+// recalculates and pushes all stat values to the DOM
+// called after every keystroke and after reset so the display never goes stale
 function refreshNumbers() {
   typedCharsText.textContent = app.totalTyped;
   mistakesText.textContent = app.wrongCount;
 
-  // calculate WPM and accuracy based on current input
+  // goodChars is the portion of typed input that actually matched the target
   const goodChars = Math.max(0, app.totalTyped - app.wrongCount);
+
+  // minutesUsed grows as the timer counts down, used as the denominator in WPM
   const minutesUsed = (60 - app.secondsLeft) / 60;
   let wpm = 0;
 
-  // standard typing calc: 5 chars = 1 word
+  // standard WPM convention treats every 5 characters as one word
+  // guarding against zero prevents a divide-by-zero on the first frame
   if (minutesUsed > 0) {
     wpm = Math.round(goodChars / 5 / minutesUsed);
   }
 
   let accuracy = 100;
 
-  // if user typed, check how many were correct
+  // accuracy is only meaningful once the user has actually typed something
   if (app.totalTyped > 0) {
     accuracy = Math.max(
       0,
@@ -209,7 +231,8 @@ function refreshNumbers() {
   bestWpmText.textContent = app.bestWpm;
 }
 
-// stop the round and save a new best if needed
+// called either when time hits zero or when the user finishes the prompt early
+// the done guard at the top prevents this running twice if both happen close together
 function finishTest() {
   if (app.done) {
     return;
@@ -225,8 +248,10 @@ function finishTest() {
     app.timerId = null;
   }
 
+  // read the already-calculated WPM from the DOM rather than recalculating
   const finalWpm = Number(wpmText.textContent);
 
+  // only update best if this round actually beat the previous record
   if (finalWpm > app.bestWpm) {
     app.bestWpm = finalWpm;
     saveBest(finalWpm);
@@ -234,7 +259,8 @@ function finishTest() {
   }
 }
 
-// keep the rendered quote safe before using innerHTML
+// any character that has meaning in HTML needs to be escaped before going into innerHTML
+// without this, a quote prompt containing < or & would break the span structure entirely
 function escapeHtml(value) {
   if (value === "&") return "&amp;";
   if (value === "<") return "&lt;";
