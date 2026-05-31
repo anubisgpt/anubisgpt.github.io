@@ -10,12 +10,12 @@ const historyList = document.getElementById("historyList");
 
 // keep round state here so click handling stays simple
 const app = {
-  mode: "idle",
+  mode: "idle", // idle | waiting | ready | done | too-soon
   waitTimer: null,
   readyAt: 0,
   lastTime: null,
-  bestTime: readBest(),
-  tries: []
+  bestTime: readBest(), // persisted in localStorage
+  tries: [] // newest first
 };
 
 // setup
@@ -32,6 +32,7 @@ function readBest() {
   const saved = localStorage.getItem("reaction-best-ms");
   if (!saved) return null;
 
+  // guard against corrupted or non-numeric storage values
   const value = Number(saved);
   return Number.isNaN(value) ? null : value;
 }
@@ -42,6 +43,7 @@ function saveBest(value) {
 
 // move from idle/done into the waiting state
 function beginRound() {
+  // don't interrupt a round that's already running
   if (app.mode === "waiting" || app.mode === "ready") {
     return;
   }
@@ -56,12 +58,13 @@ function beginRound() {
   setStageClass("waiting");
   message.textContent = "wait for it";
 
+  // random delay so the user can't just predict the timing
   const delay = 1400 + Math.floor(Math.random() * 2600);
 
   // after the delay, switch to the clickable state
   app.waitTimer = setTimeout(() => {
     app.mode = "ready";
-    app.readyAt = performance.now();
+    app.readyAt = performance.now(); // sub-ms precision matters for reaction timing
     setStageClass("ready");
     message.textContent = "click now";
     app.waitTimer = null;
@@ -74,6 +77,7 @@ function handleStageClick() {
     return;
   }
 
+  // clicked before the signal showed up
   if (app.mode === "waiting") {
     missStart();
     return;
@@ -84,6 +88,7 @@ function handleStageClick() {
     return;
   }
 
+  // after a finished round or early click, tapping stage starts a new one
   if (app.mode === "done" || app.mode === "too-soon") {
     beginRound();
   }
@@ -91,6 +96,7 @@ function handleStageClick() {
 
 // early click ends the current round before the signal appears
 function missStart() {
+  // kill the pending timer so the ready state never fires
   if (app.waitTimer) {
     clearTimeout(app.waitTimer);
     app.waitTimer = null;
@@ -110,11 +116,12 @@ function finishRound() {
   app.lastTime = time;
   app.tries.unshift(time);
 
-  // keep only the newest few results
+  // keep only the newest few results so the list doesn't grow forever
   if (app.tries.length > 6) {
     app.tries.pop();
   }
 
+  // check if this beats the stored record
   if (app.bestTime === null || time < app.bestTime) {
     app.bestTime = time;
     saveBest(time);
@@ -130,6 +137,7 @@ function finishRound() {
 
 // clear both the visible values and the saved best time
 function clearScores() {
+  // stop any in-progress round
   if (app.waitTimer) {
     clearTimeout(app.waitTimer);
     app.waitTimer = null;
